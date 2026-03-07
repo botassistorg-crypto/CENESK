@@ -1,133 +1,228 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8EmNERNn7BChL0qxpTlHenoVw9krZ7ZmYl0YlVeZXoscctrR61ExLCA6KvJnh12Gy/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx8EmNERNn7BChL0qxpTlHenoVw9krZ7ZmYl0YlVeZXoscctrR61ExLCA6KvJnh12Gy/exec";
 
-export interface OrderData {
-  customerName: string;
-  email: string;
-  phone: string;
-  whatsapp?: string;
-  address: string;
-  division: string;
-  district: string;
-  paymentMethod: string;
-  transactionId?: string;
-  items: any[];
-  total: number;
-  deliveryFee: number;
-  subtotal: number;
-  discount: number;
-  notes?: string;
-  senderNumber?: string;
+// ===== API HELPERS =====
+
+async function apiGet(action: string, params: Record<string, string> = {}): Promise<any> {
+  try {
+    const queryParams = new URLSearchParams({ action, ...params });
+    const url = `${API_URL}?${queryParams.toString()}`;
+    console.log(`[CENESK API] GET: ${action}`, params);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log(`[CENESK API] GET Response:`, result);
+    return result;
+  } catch (error: any) {
+    console.error(`[CENESK API] GET Error (${action}):`, error.message);
+    return { success: false, data: [], count: 0, error: error.message };
+  }
 }
 
-// Helper for GET requests
-const fetchGet = async (action: string, params: any = {}) => {
+async function apiPost(action: string, data: any): Promise<any> {
+  const payload = JSON.stringify({ action, data });
+  console.log(`[CENESK API] POST: ${action}`, data);
+  
+  // Attempt 1: Normal fetch with redirect follow
   try {
-    const url = new URL(GOOGLE_SCRIPT_URL);
-    url.searchParams.append('action', action);
-    
-    Object.keys(params).forEach(key => {
-      url.searchParams.append(key, params[key]);
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: payload,
+      redirect: 'follow',
     });
-
-    const response = await fetch(url.toString());
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error(`API Error (${action}):`, error);
-    return null;
+    
+    const text = await response.text();
+    console.log(`[CENESK API] POST Raw Response:`, text);
+    
+    try {
+      const result = JSON.parse(text);
+      console.log(`[CENESK API] POST Parsed Response:`, result);
+      return result;
+    } catch {
+      // Response wasn't JSON but request may have succeeded
+      console.log(`[CENESK API] POST: Non-JSON response, assuming success`);
+      return { success: true, message: 'Request completed' };
+    }
+  } catch (error: any) {
+    console.warn(`[CENESK API] POST Normal fetch failed (${action}):`, error.message);
   }
-};
-
-// Helper for POST requests
-const fetchPost = async (action: string, data: any) => {
+  
+  // Attempt 2: no-cors fallback
   try {
-    const response = await fetch(
-      `${GOOGLE_SCRIPT_URL}?action=${action}`, 
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: JSON.stringify(data),
-        mode: 'no-cors',
-      }
-    );
-    return { success: true };
-  } catch (error) {
-    console.error(`API Post Error (${action}):`, error);
-    return { success: false, message: "Network error occurred." };
+    await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: payload,
+      mode: 'no-cors',
+    });
+    
+    console.log(`[CENESK API] POST no-cors sent successfully (${action})`);
+    return { success: true, message: 'Request sent (no-cors)' };
+  } catch (fallbackError: any) {
+    console.error(`[CENESK API] POST Both attempts failed (${action}):`, fallbackError.message);
+    return { success: false, error: fallbackError.message };
   }
-};
+}
 
-// --- PUBLIC API ---
+// ===== GET FUNCTIONS =====
 
-export const getProducts = async () => {
-  const response = await fetchGet('getProducts');
-  return response?.data || [];
-};
+export async function pingAPI() {
+  return apiGet('ping');
+}
 
-export const getProductById = async (id: string) => {
-  const response = await fetchGet('getProduct', { id });
-  return response?.data || null;
-};
+export async function getProducts() {
+  const result = await apiGet('getProducts');
+  return result?.data || [];
+}
 
-export const getCategories = async () => {
-  const response = await fetchGet('getCategories');
-  return response?.data || [];
-};
+export async function getProduct(id: string) {
+  const result = await apiGet('getProduct', { id });
+  return result?.data || null;
+}
 
-export const submitOrder = async (orderData: OrderData) => {
-  return await fetchPost('placeOrder', orderData);
-};
+export async function getProductsByCategory(category: string) {
+  const result = await apiGet('getProductsByCategory', { category });
+  return result?.data || [];
+}
 
-// --- ADMIN API ---
+export async function getCategories() {
+  const result = await apiGet('getCategories');
+  return result?.data || [];
+}
 
-export const adminLogin = async (password: string) => {
-  const response = await fetchGet('adminLogin', { password });
-  return response || { success: false, message: "Connection failed" };
-};
+export async function getBundles() {
+  const result = await apiGet('getBundles');
+  return result?.data || [];
+}
 
-export const getDashboardStats = async () => {
-  const response = await fetchGet('getDashboard');
-  return response || null;
-};
+export async function getBundle(id: string) {
+  const result = await apiGet('getBundle', { id });
+  return result?.data || null;
+}
 
-export const getOrders = async () => {
-  const response = await fetchGet('getOrders');
-  return response?.data || [];
-};
+export async function getSettings() {
+  return apiGet('getSettings');
+}
 
-export const addProduct = async (productData: any) => {
-  return await fetchPost('addProduct', productData);
-};
+export async function searchProducts(query: string) {
+  const result = await apiGet('searchProducts', { query });
+  return result?.data || [];
+}
 
-export const updateOrderStatus = async (orderId: string, status: string) => {
-  return await fetchPost('updateOrderStatus', { orderId, status });
-};
+export async function getDashboardStats() {
+  return apiGet('getDashboard');
+}
 
-export const uploadImageToImgBB = async (file: File) => {
+export async function getOrders() {
+  const result = await apiGet('getOrders');
+  return result?.data || [];
+}
+
+export async function getCustomers() {
+  const result = await apiGet('getCustomers');
+  return result?.data || [];
+}
+
+export async function getReviews(productId: string) {
+  const result = await apiGet('getReviews', { productId });
+  return result?.data || [];
+}
+
+export async function adminLogin(password: string) {
+  return apiGet('adminLogin', { password });
+}
+
+export async function trackOrder(orderId: string) {
+  return apiGet('trackOrder', { orderId });
+}
+
+export async function trackOrderByPhone(phone: string) {
+  return apiGet('trackOrder', { phone });
+}
+
+// ===== POST FUNCTIONS =====
+
+export async function addProduct(productData: any) {
+  return apiPost('addProduct', productData);
+}
+
+export async function updateProduct(productData: any) {
+  return apiPost('updateProduct', productData);
+}
+
+export async function deleteProduct(id: string) {
+  return apiPost('deleteProduct', { id });
+}
+
+export async function placeOrder(orderData: any) {
+  return apiPost('placeOrder', orderData);
+}
+
+export async function updateOrderStatus(orderId: string, status: string) {
+  return apiPost('updateOrderStatus', { orderId, status });
+}
+
+export async function addBundle(bundleData: any) {
+  return apiPost('addBundle', bundleData);
+}
+
+export async function updateBundle(bundleData: any) {
+  return apiPost('updateBundle', bundleData);
+}
+
+export async function deleteBundle(id: string) {
+  return apiPost('deleteBundle', { id });
+}
+
+export async function addCategory(categoryData: any) {
+  return apiPost('addCategory', categoryData);
+}
+
+export async function updateCategory(categoryData: any) {
+  return apiPost('updateCategory', categoryData);
+}
+
+export async function deleteCategory(id: string) {
+  return apiPost('deleteCategory', { id });
+}
+
+export async function addReview(reviewData: any) {
+  return apiPost('addReview', reviewData);
+}
+
+export async function updateSettings(settingsData: any) {
+  return apiPost('updateSettings', settingsData);
+}
+
+export async function subscribe(email: string) {
+  return apiPost('subscribe', { email });
+}
+
+// ===== IMAGE UPLOAD =====
+
+export async function uploadImageToImgBB(file: File): Promise<{ success: boolean; url?: string; message?: string }> {
   try {
+    const apiKey = localStorage.getItem('imgbb_api_key') || '249d6156eb00d39b61ac4b421fd59003';
     const formData = new FormData();
     formData.append('image', file);
-    const apiKey = localStorage.getItem('imgbb_api_key');
     
-    if (!apiKey) {
-      return { success: false, message: "Please set your ImgBB API Key in Settings first." };
-    }
-
     const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
       method: 'POST',
       body: formData,
     });
-
-    const data = await response.json();
-    if (data.success) {
-      return { success: true, url: data.data.url };
-    } else {
-      return { success: false, message: data.error?.message || "Upload failed" };
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      return { success: true, url: result.data.display_url };
     }
-  } catch (error) {
-    console.error("Image upload failed:", error);
-    return { success: false, message: "Network error" };
+    return { success: false, message: 'Upload failed' };
+  } catch (error: any) {
+    return { success: false, message: error.message };
   }
-};
+}
