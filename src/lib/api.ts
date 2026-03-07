@@ -58,15 +58,15 @@ export const getCategories = async () => {
 export const submitOrder = async (orderData: OrderData) => {
   try {
     // We use no-cors for POST to avoid CORS issues with Google Apps Script
-    // This means we won't get a readable response, but the data is sent.
-    const formData = new FormData();
-    formData.append('action', 'placeOrder');
-    formData.append('data', JSON.stringify(orderData));
-
+    // We send raw JSON string because the backend script expects JSON.parse(e.postData.contents)
+    
     await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
-      body: formData,
-      mode: 'no-cors'
+      body: JSON.stringify(orderData),
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      }
     });
 
     return { success: true };
