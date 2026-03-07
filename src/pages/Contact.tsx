@@ -58,8 +58,8 @@ export default function Contact() {
                     <Phone className="w-5 h-5 text-[#B8965A]" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">Phone</h3>
-                    <p className="text-gray-400">+880 1XXX-XXXXXX</p>
+                    <h3 className="font-bold text-lg">Phone & WhatsApp</h3>
+                    <p className="text-gray-400">+880 1700-524647</p>
                     <p className="text-gray-500 text-sm">Mon-Fri, 9am - 6pm</p>
                   </div>
                 </div>
@@ -70,7 +70,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg">Email</h3>
-                    <p className="text-gray-400">hello@cenesk.com</p>
+                    <p className="text-gray-400">info.cenesek@gmail.com</p>
                     <p className="text-gray-500 text-sm">We reply within 2 hours</p>
                   </div>
                 </div>
