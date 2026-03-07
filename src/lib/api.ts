@@ -24,12 +24,13 @@ async function apiGet(action: string, params: Record<string, string> = {}): Prom
 }
 
 async function apiPost(action: string, data: any): Promise<any> {
-  const payload = JSON.stringify({ action, data });
+  const url = `${API_URL}?action=${action}`;
+  const payload = JSON.stringify(data);
   console.log(`[CENESK API] POST: ${action}`, data);
   
   // Attempt 1: Normal fetch with redirect follow
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: payload,
@@ -54,7 +55,7 @@ async function apiPost(action: string, data: any): Promise<any> {
   
   // Attempt 2: no-cors fallback
   try {
-    await fetch(API_URL, {
+    await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: payload,
