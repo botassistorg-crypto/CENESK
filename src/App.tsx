@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import { CartProvider } from './context/CartContext';
 import { ProductSkeleton } from './components/ui/Skeleton';
+import ScrollToTop from './components/ui/ScrollToTop';
 
 // Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'));
@@ -26,6 +27,7 @@ export default function App() {
   return (
     <CartProvider>
       <Router>
+        <ScrollToTop />
         <Suspense fallback={<div className="container mx-auto px-4 py-24 grid grid-cols-1 md:grid-cols-3 gap-8"><ProductSkeleton /><ProductSkeleton /><ProductSkeleton /></div>}>
           <Routes>
             <Route path="/" element={<Layout />}>
