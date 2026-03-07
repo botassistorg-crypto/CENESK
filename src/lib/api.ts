@@ -16,15 +16,15 @@ export interface OrderData {
   subtotal: number;
   discount: number;
   notes?: string;
+  senderNumber?: string;
 }
 
-// Helper to handle API requests
-const fetchFromScript = async (action: string, params: any = {}) => {
+// Helper for GET requests
+const fetchGet = async (action: string, params: any = {}) => {
   try {
     const url = new URL(GOOGLE_SCRIPT_URL);
     url.searchParams.append('action', action);
     
-    // Append other params for GET requests
     Object.keys(params).forEach(key => {
       url.searchParams.append(key, params[key]);
     });
@@ -38,85 +38,77 @@ const fetchFromScript = async (action: string, params: any = {}) => {
   }
 };
 
+// Helper for POST requests
+const fetchPost = async (action: string, data: any) => {
+  try {
+    const response = await fetch(
+      `${GOOGLE_SCRIPT_URL}?action=${action}`, 
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: JSON.stringify(data),
+        mode: 'no-cors',
+      }
+    );
+    return { success: true };
+  } catch (error) {
+    console.error(`API Post Error (${action}):`, error);
+    return { success: false, message: "Network error occurred." };
+  }
+};
+
 // --- PUBLIC API ---
 
 export const getProducts = async () => {
-  const response = await fetchFromScript('getProducts');
+  const response = await fetchGet('getProducts');
   return response?.data || [];
 };
 
 export const getProductById = async (id: string) => {
-  const response = await fetchFromScript('getProduct', { id });
+  const response = await fetchGet('getProduct', { id });
   return response?.data || null;
 };
 
 export const getCategories = async () => {
-  const response = await fetchFromScript('getCategories');
+  const response = await fetchGet('getCategories');
   return response?.data || [];
 };
 
 export const submitOrder = async (orderData: OrderData) => {
-  try {
-    // We use no-cors for POST to avoid CORS issues with Google Apps Script
-    // We send raw JSON string because the backend script expects JSON.parse(e.postData.contents)
-    
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify(orderData),
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      }
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Order submission failed:", error);
-    return { success: false, message: "Network error occurred." };
-  }
+  return await fetchPost('placeOrder', orderData);
 };
 
 // --- ADMIN API ---
 
 export const adminLogin = async (password: string) => {
-  const response = await fetchFromScript('adminLogin', { password });
+  const response = await fetchGet('adminLogin', { password });
   return response || { success: false, message: "Connection failed" };
 };
 
 export const getDashboardStats = async () => {
-  const response = await fetchFromScript('getDashboard');
+  const response = await fetchGet('getDashboard');
   return response || null;
 };
 
 export const getOrders = async () => {
-  const response = await fetchFromScript('getOrders');
+  const response = await fetchGet('getOrders');
   return response?.data || [];
 };
 
 export const addProduct = async (productData: any) => {
-  try {
-    const formData = new FormData();
-    formData.append('action', 'addProduct');
-    formData.append('data', JSON.stringify(productData));
+  return await fetchPost('addProduct', productData);
+};
 
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      body: formData,
-      mode: 'no-cors'
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to add product:", error);
-    return { success: false, message: "Network error" };
-  }
+export const updateOrderStatus = async (orderId: string, status: string) => {
+  return await fetchPost('updateOrderStatus', { orderId, status });
 };
 
 export const uploadImageToImgBB = async (file: File) => {
   try {
     const formData = new FormData();
     formData.append('image', file);
-    // Use a public key or ask user to provide one. For now, we'll ask the user.
-    // Ideally, this should be in an environment variable.
     const apiKey = localStorage.getItem('imgbb_api_key');
     
     if (!apiKey) {
@@ -137,22 +129,5 @@ export const uploadImageToImgBB = async (file: File) => {
   } catch (error) {
     console.error("Image upload failed:", error);
     return { success: false, message: "Network error" };
-  }
-};
-
-export const updateOrderStatus = async (orderId: string, status: string) => {
-  try {
-    const formData = new FormData();
-    formData.append('action', 'updateOrderStatus');
-    formData.append('data', JSON.stringify({ orderId, status }));
-
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      body: formData,
-      mode: 'no-cors'
-    });
-    return { success: true };
-  } catch (error) {
-    return { success: false };
   }
 };
