@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/utils';
-import { submitOrder } from '../lib/api';
+import { placeOrder } from '../lib/api';
 import { toast } from 'sonner';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
@@ -68,7 +68,7 @@ export default function Checkout() {
         notes: data.notes
       };
 
-      await submitOrder(orderData);
+      await placeOrder(orderData);
       
       clearCart();
       toast.success("Order placed successfully!");
@@ -222,21 +222,21 @@ export default function Checkout() {
                           <label className="block text-xs font-medium text-gray-700 mb-1">Your bKash Number (Sender)</label>
                           <input
                             {...register('senderNumber', { required: "Sender number is required" })}
-                            placeholder="e.g., 017XXXXXXXX"
+                            placeholder="The number you sent money FROM"
                             className="w-full px-3 py-2 border border-gray-200 rounded focus:outline-none focus:border-[#B8965A] text-sm"
                           />
-                          <p className="text-[10px] text-gray-500 mt-1">We need this to verify your payment automatically.</p>
+                          <p className="text-[10px] text-gray-500 mt-1">We need this to verify your payment.</p>
                         </div>
                         
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Transaction ID (TrxID)</label>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Transaction ID (TrxID) <span className="text-gray-400 font-normal">(Optional)</span></label>
                           <input
-                            {...register('transactionId', { required: "Transaction ID is required" })}
+                            {...register('transactionId')}
                             placeholder="e.g., 8N7A6D5F"
                             className="w-full px-3 py-2 border border-gray-200 rounded focus:outline-none focus:border-[#B8965A] text-sm"
                           />
                           <p className="text-[10px] text-gray-500 mt-1">
-                            Check your bKash SMS or App notification. It looks like: <span className="font-mono bg-gray-100 px-1 rounded">TrxID : DBS6JXU6IU</span>
+                            If you didn't receive a TrxID, just provide your Sender Number above.
                           </p>
                         </div>
                       </div>
