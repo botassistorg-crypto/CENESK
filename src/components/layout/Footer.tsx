@@ -57,13 +57,16 @@ export default function Footer() {
             </li>
             <li className="flex items-start gap-3">
               <Mail className="w-5 h-5 text-[#B8965A] mt-0.5" />
-              <span>hello@cenesk.com</span>
+              <span>info.cenesek@gmail.com</span>
             </li>
             <li className="flex items-start gap-3">
               <MapPin className="w-5 h-5 text-[#B8965A] mt-0.5" />
               <span>Dhaka, Bangladesh</span>
             </li>
             <li className="pt-4">
+              <p className="text-xs text-gray-500 mb-2 italic">
+                Please send us a message on Email or WhatsApp if you have any inquiry.
+              </p>
               <a 
                 href="https://wa.me/8801700524647" 
                 target="_blank" 
