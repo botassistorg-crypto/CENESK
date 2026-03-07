@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Star, Truck, RefreshCw, ShieldCheck, Minus, Plus, Share2, Heart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/utils';
-import { products } from '../data/products';
+import { getProducts } from '../lib/api';
 import { toast } from 'sonner';
 import { ProductCard } from '../components/ui/ProductCard';
 import Skeleton from '../components/ui/Skeleton';
@@ -12,30 +12,68 @@ import Skeleton from '../components/ui/Skeleton';
 export default function ProductDetails() {
   const { id } = useParams();
   const [product, setProduct] = useState<any>(null);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState("M");
-  const [selectedColor, setSelectedColor] = useState("Black");
+  const [selectedSize, setSelectedSize] = useState("");
+  const [selectedColor, setSelectedColor] = useState("");
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [showZoom, setShowZoom] = useState(false);
   const { addItem } = useCart();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const foundProduct = products.find(p => p.id === id);
-    if (foundProduct) {
-      setProduct(foundProduct);
-      window.scrollTo(0, 0);
-    }
+    const fetchProductData = async () => {
+      setLoading(true);
+      try {
+        const productsData = await getProducts();
+        
+        // Map API products to internal format
+        const mappedProducts = (Array.isArray(productsData) ? productsData : []).map((p: any) => ({
+          id: p.ID,
+          name: p.Name,
+          category: p.Category,
+          price: Number(p.OriginalPrice),
+          salePrice: p.SalePrice ? Number(p.SalePrice) : undefined,
+          image: p.Images ? p.Images.split(',')[0].trim() : '',
+          images: p.Images ? p.Images.split(',').map((img: string) => img.trim()) : [],
+          description: p.Description,
+          sizes: p.Sizes ? p.Sizes.split(',').map((s: string) => s.trim()) : [],
+          colors: p.Colors ? p.Colors.split(',').map((c: string) => c.trim()) : [],
+          rating: 5, // Default
+          reviews: 0, // Default
+          badge: p.Featured === 'Yes' ? 'Featured' : (p.SalePrice ? 'Sale' : '')
+        }));
+
+        setAllProducts(mappedProducts);
+
+        const foundProduct = mappedProducts.find((p: any) => p.id === id);
+        if (foundProduct) {
+          setProduct(foundProduct);
+          // Set default selections
+          if (foundProduct.sizes.length > 0) setSelectedSize(foundProduct.sizes[0]);
+          if (foundProduct.colors.length > 0) setSelectedColor(foundProduct.colors[0]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch product details", error);
+        toast.error("Failed to load product details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProductData();
+    window.scrollTo(0, 0);
   }, [id]);
 
   const relatedProducts = useMemo(() => {
-    if (!product) return [];
-    return products
+    if (!product || allProducts.length === 0) return [];
+    return allProducts
       .filter(p => p.category === product.category && p.id !== product.id)
       .slice(0, 4);
-  }, [product]);
+  }, [product, allProducts]);
 
-  if (!product) {
+  if (loading || !product) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="flex flex-col lg:flex-row gap-12">
@@ -101,9 +139,9 @@ export default function ProductDetails() {
             </button>
           </div>
           <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
+            {product.images.slice(0, 4).map((img: string, i: number) => (
               <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
-                <img src={product.image} alt={`Thumbnail ${i}`} className="w-full h-full object-cover" />
+                <img src={img} alt={`Thumbnail ${i}`} className="w-full h-full object-cover" />
               </div>
             ))}
           </div>
@@ -138,50 +176,54 @@ export default function ProductDetails() {
           </div>
 
           <p className="text-gray-600 leading-relaxed font-light text-lg">
-            Experience luxury with our {product.name}. Crafted with premium materials and designed for elegance, this piece is a perfect addition to your collection.
+            {product.description || `Experience luxury with our ${product.name}. Crafted with premium materials and designed for elegance, this piece is a perfect addition to your collection.`}
           </p>
 
           <div className="space-y-6">
             {/* Size Selector */}
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-sm font-bold uppercase tracking-widest">Size</h3>
-                <Link to="/size-guide" className="text-xs text-[#B8965A] hover:underline">Size Guide</Link>
+            {product.sizes.length > 0 && (
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-bold uppercase tracking-widest">Size</h3>
+                  <Link to="/size-guide" className="text-xs text-[#B8965A] hover:underline">Size Guide</Link>
+                </div>
+                <div className="flex gap-3">
+                  {product.sizes.map((size: string) => (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      className={`w-12 h-12 rounded-full border flex items-center justify-center text-sm font-medium transition-all ${
+                        selectedSize === size
+                          ? 'border-[#B8965A] bg-[#B8965A] text-white'
+                          : 'border-gray-200 hover:border-[#B8965A] text-gray-600'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-3">
-                {['S', 'M', 'L', 'XL'].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={`w-12 h-12 rounded-full border flex items-center justify-center text-sm font-medium transition-all ${
-                      selectedSize === size
-                        ? 'border-[#B8965A] bg-[#B8965A] text-white'
-                        : 'border-gray-200 hover:border-[#B8965A] text-gray-600'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Color Selector */}
-            <div>
-              <h3 className="text-sm font-bold uppercase tracking-widest mb-3">Color</h3>
-              <div className="flex gap-3">
-                {['Black', 'Gold', 'Sage'].map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setSelectedColor(color)}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${
-                      selectedColor === color ? 'border-[#B8965A] scale-110' : 'border-transparent hover:scale-110'
-                    }`}
-                    style={{ backgroundColor: color.toLowerCase() === 'gold' ? '#B8965A' : color.toLowerCase() === 'sage' ? '#A8B5A0' : '#1A1A1A' }}
-                    title={color}
-                  />
-                ))}
+            {product.colors.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-widest mb-3">Color</h3>
+                <div className="flex gap-3">
+                  {product.colors.map((color: string) => (
+                    <button
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${
+                        selectedColor === color ? 'border-[#B8965A] scale-110' : 'border-transparent hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: color.toLowerCase() === 'gold' ? '#B8965A' : color.toLowerCase() === 'sage' ? '#A8B5A0' : (color.toLowerCase() === 'white' ? '#f0f0f0' : color.toLowerCase()) }}
+                      title={color}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Quantity & Add to Cart */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-100">
