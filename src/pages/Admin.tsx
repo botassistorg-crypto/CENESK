@@ -433,6 +433,21 @@ export default function Admin() {
             )}
           </div>
         );
+      case 'bundles':
+        return (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold mb-4">Bundle Management</h2>
+            <p className="text-gray-500">Bundle management features coming soon. For now, please use the Google Sheet directly to manage bundles.</p>
+            <a 
+              href="https://docs.google.com/spreadsheets/d/1XyZ..." 
+              target="_blank" 
+              rel="noreferrer"
+              className="inline-block mt-4 text-[#B8965A] underline"
+            >
+              Open Google Sheet Database
+            </a>
+          </div>
+        );
       case 'settings':
         return (
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-2xl">
@@ -485,6 +500,7 @@ export default function Admin() {
           {[
             { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
             { id: 'products', icon: Package, label: 'Products' },
+            { id: 'bundles', icon: ShoppingBag, label: 'Bundles' },
             { id: 'orders', icon: ShoppingBag, label: 'Orders' },
             { id: 'customers', icon: Users, label: 'Customers' },
             { id: 'settings', icon: Settings, label: 'Settings' }
