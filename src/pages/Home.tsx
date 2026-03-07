@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Truck, ShieldCheck, MessageCircle, RefreshCw, Star, Quote } from 'lucide-react';
 import { ProductCard } from '../components/ui/ProductCard';
-import { products } from '../data/products';
+import { getProducts, getBundles } from '../lib/api';
 
 const heroSlides = [
   {
@@ -79,9 +79,57 @@ const testimonials = [
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const featuredProducts = products.slice(0, 4);
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [featuredBundles, setFeaturedBundles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [productsData, bundlesData] = await Promise.all([
+          getProducts(),
+          getBundles()
+        ]);
+
+        // Map API products to ProductCard format
+        const mappedProducts = (Array.isArray(productsData) ? productsData : [])
+          .filter((p: any) => p.Featured === 'Yes' || p.Status === 'Active')
+          .slice(0, 4)
+          .map((p: any) => ({
+            id: p.ID,
+            name: p.Name,
+            category: p.Category,
+            price: Number(p.OriginalPrice),
+            salePrice: p.SalePrice ? Number(p.SalePrice) : undefined,
+            image: p.Images ? p.Images.split(',')[0].trim() : '',
+            rating: 5,
+            reviews: 0,
+            badge: p.Featured === 'Yes' ? 'Featured' : (p.SalePrice ? 'Sale' : '')
+          }));
+        
+        setFeaturedProducts(mappedProducts);
+
+        // Get first 2 bundles
+        const mappedBundles = (Array.isArray(bundlesData) ? bundlesData : [])
+          .slice(0, 2)
+          .map((b: any) => ({
+            id: b.ID,
+            name: b.Name,
+            description: b.Description,
+            image: b.Images ? b.Images.split(',')[0].trim() : '',
+            link: '/offers'
+          }));
+          
+        setFeaturedBundles(mappedBundles);
+      } catch (error) {
+        console.error("Failed to fetch home data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
     }, 5000);
@@ -203,55 +251,44 @@ export default function Home() {
       </section>
 
       {/* Featured Bundles */}
-      <section className="bg-[#1A1A1A] py-24 text-white overflow-hidden">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-            <div className="max-w-xl">
-              <span className="text-[#B8965A] uppercase tracking-[0.3em] text-xs font-bold mb-4 block">Exclusive Value</span>
-              <h2 className="text-4xl md:text-5xl font-serif mb-6">Curated Bundles</h2>
-              <p className="text-gray-400 font-light text-lg">
-                Save more with our expertly paired sets. Designed to provide a complete experience at an exceptional price.
-              </p>
-            </div>
-            <Link to="/offers" className="bg-white text-[#1A1A1A] px-8 py-3 uppercase tracking-widest text-xs font-bold hover:bg-[#B8965A] hover:text-white transition-all duration-300">
-              View All Offers
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="group relative aspect-[16/9] overflow-hidden rounded-2xl">
-              <img 
-                src="https://i.ibb.co.com/GQHWjX8J/BUNDLES-CATEGORY.jpg" 
-                alt="Self Care Bundle" 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-500" />
-              <div className="absolute inset-0 flex flex-col justify-center p-12">
-                <h3 className="text-3xl font-serif mb-4">The Glow Ritual</h3>
-                <p className="text-gray-200 mb-8 max-w-xs font-light">Complete face and body care set for a radiant finish.</p>
-                <Link to="/offers" className="text-white border-b border-white w-fit pb-1 text-sm uppercase tracking-widest font-bold hover:text-[#B8965A] hover:border-[#B8965A] transition-colors">
-                  Shop Bundle
-                </Link>
+      {featuredBundles.length > 0 && (
+        <section className="bg-[#1A1A1A] py-24 text-white overflow-hidden">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+              <div className="max-w-xl">
+                <span className="text-[#B8965A] uppercase tracking-[0.3em] text-xs font-bold mb-4 block">Exclusive Value</span>
+                <h2 className="text-4xl md:text-5xl font-serif mb-6">Curated Bundles</h2>
+                <p className="text-gray-400 font-light text-lg">
+                  Save more with our expertly paired sets. Designed to provide a complete experience at an exceptional price.
+                </p>
               </div>
+              <Link to="/offers" className="bg-white text-[#1A1A1A] px-8 py-3 uppercase tracking-widest text-xs font-bold hover:bg-[#B8965A] hover:text-white transition-all duration-300">
+                View All Offers
+              </Link>
             </div>
-            <div className="group relative aspect-[16/9] overflow-hidden rounded-2xl">
-              <img 
-                src="https://i.ibb.co.com/mYTmfnZ/flat-lay-hero-1.png" 
-                alt="Accessories Bundle" 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-500" />
-              <div className="absolute inset-0 flex flex-col justify-center p-12">
-                <h3 className="text-3xl font-serif mb-4">The Silk Collection</h3>
-                <p className="text-gray-200 mb-8 max-w-xs font-light">Three premium silk hijabs in a curated color palette.</p>
-                <Link to="/offers" className="text-white border-b border-white w-fit pb-1 text-sm uppercase tracking-widest font-bold hover:text-[#B8965A] hover:border-[#B8965A] transition-colors">
-                  Shop Bundle
-                </Link>
-              </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {featuredBundles.map((bundle, index) => (
+                <div key={index} className="group relative aspect-[16/9] overflow-hidden rounded-2xl">
+                  <img 
+                    src={bundle.image || "https://i.ibb.co.com/GQHWjX8J/BUNDLES-CATEGORY.jpg"} 
+                    alt={bundle.name} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-500" />
+                  <div className="absolute inset-0 flex flex-col justify-center p-12">
+                    <h3 className="text-3xl font-serif mb-4">{bundle.name}</h3>
+                    <p className="text-gray-200 mb-8 max-w-xs font-light">{bundle.description}</p>
+                    <Link to="/offers" className="text-white border-b border-white w-fit pb-1 text-sm uppercase tracking-widest font-bold hover:text-[#B8965A] hover:border-[#B8965A] transition-colors">
+                      Shop Bundle
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Featured Products */}
       <section className="container mx-auto px-4">
@@ -264,11 +301,30 @@ export default function Home() {
             View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="bg-gray-200 aspect-[3/4] rounded-lg mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {featuredProducts.length > 0 ? (
+              featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))
+            ) : (
+              <div className="col-span-4 text-center py-12 text-gray-400">
+                <p>No featured products found.</p>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Categories Section */}
