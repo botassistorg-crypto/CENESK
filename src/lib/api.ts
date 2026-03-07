@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxIavOjm5UQZwDP2EBaPBSURs0LSrSaFJReQM6F5y6r3iO2QOz1UEaulbBX-Ik3mANc/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8EmNERNn7BChL0qxpTlHenoVw9krZ7ZmYl0YlVeZXoscctrR61ExLCA6KvJnh12Gy/exec";
 
 export interface OrderData {
   customerName: string;
