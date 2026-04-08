@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Package, ShoppingBag, Users, Settings, LogOut, RefreshCw, Pencil, Trash2, Plus, X, Gift } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Users, Settings, LogOut, RefreshCw, Pencil, Trash2, Plus, X, Gift, Grid } from 'lucide-react';
 import { toast } from 'sonner';
 import Logo from '../components/ui/Logo';
 import { 
   getDashboardStats, getOrders, getProducts, getBundles,
   updateOrderStatus, addProduct, updateProduct, deleteProduct,
   addBundle, updateBundle, deleteBundle,
-  uploadImageToImgBB, getCustomers
+  uploadImageToImgBB, getCustomers, getSettings, updateSettings,
+  getCategories, addCategory, updateCategory, deleteCategory
 } from '../lib/api';
 
 export default function Admin() {
@@ -18,8 +19,10 @@ export default function Admin() {
   const [stats, setStats] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [bundles, setBundles] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({});
 
   // Product Form State
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -53,6 +56,16 @@ export default function Admin() {
     items: '' // Description of items included
   });
 
+  // Category Form State
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+    image: ''
+  });
+  const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<string | null>(null);
+
   // Image Upload State
   const [imgbbKey] = useState(localStorage.getItem('imgbb_api_key') || '249d6156eb00d39b61ac4b421fd59003');
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -70,18 +83,24 @@ export default function Admin() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [statsData, ordersData, productsData, customersData, bundlesData] = await Promise.all([
+      const [statsData, ordersData, productsData, customersData, bundlesData, settingsData, categoriesData] = await Promise.all([
         getDashboardStats(),
         getOrders(),
         getProducts(),
         getCustomers(),
-        getBundles()
+        getBundles(),
+        getSettings(),
+        getCategories()
       ]);
       setStats(statsData);
       setOrders(Array.isArray(ordersData) ? ordersData : (ordersData?.data || []));
       setProducts(Array.isArray(productsData) ? productsData : (productsData?.data || []));
       setCustomers(Array.isArray(customersData) ? customersData : (customersData?.data || []));
       setBundles(Array.isArray(bundlesData) ? bundlesData : (bundlesData?.data || []));
+      setCategories(Array.isArray(categoriesData) ? categoriesData : (categoriesData?.data || []));
+      if (settingsData) {
+        setSettings(settingsData);
+      }
     } catch (error) {
       console.error("Fetch error:", error);
       toast.error("Failed to load data");
@@ -277,25 +296,37 @@ export default function Admin() {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isBundle = false) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'product' | 'bundle' | 'category' = 'product') => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
     setUploadingImage(true);
+    const uploadPromises = Array.from(files).map((file: File) => uploadImageToImgBB(file));
+    
     try {
-      const res = await uploadImageToImgBB(file);
-      if (res.success && res.url) {
-        if (isBundle) {
+      const results = await Promise.all(uploadPromises);
+      const successfulUrls = results.filter(res => res.success && res.url).map(res => res.url as string);
+      
+      if (successfulUrls.length > 0) {
+        const newUrlsString = successfulUrls.join(',');
+        
+        if (type === 'bundle') {
           const currentImages = bundleForm.images;
-          const newImages = currentImages ? currentImages + "," + res.url : res.url;
+          const newImages = currentImages ? currentImages + "," + newUrlsString : newUrlsString;
           setBundleForm(prev => ({ ...prev, images: newImages }));
+        } else if (type === 'category') {
+          setCategoryForm(prev => ({ ...prev, image: successfulUrls[0] })); // Categories usually have one image
         } else {
           const currentImages = productForm.images;
-          const newImages = currentImages ? currentImages + "," + res.url : res.url;
+          const newImages = currentImages ? currentImages + "," + newUrlsString : newUrlsString;
           setProductForm(prev => ({ ...prev, images: newImages }));
         }
-        toast.success("Image uploaded!");
-      } else {
-        toast.error("Upload failed");
+        toast.success(`${successfulUrls.length} image(s) uploaded!`);
+      }
+      
+      const failedCount = results.length - successfulUrls.length;
+      if (failedCount > 0) {
+        toast.error(`${failedCount} upload(s) failed`);
       }
     } catch (error) {
       toast.error("Upload error");
@@ -304,7 +335,109 @@ export default function Admin() {
     }
   };
 
+  // ===== CATEGORY HANDLERS =====
+  const resetCategoryForm = () => {
+    setCategoryForm({ name: '', description: '', image: '' });
+    setIsAddingCategory(false);
+    setEditingCategory(null);
+  };
+
+  const openAddCategory = () => {
+    resetCategoryForm();
+    setIsAddingCategory(true);
+  };
+
+  const openEditCategory = (category: any) => {
+    setEditingCategory(category);
+    setCategoryForm({
+      name: category.Name,
+      description: category.Description || '',
+      image: category.Image || ''
+    });
+    setIsAddingCategory(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryForm.name) {
+      toast.error("Please enter a category name");
+      return;
+    }
+    setLoading(true);
+    try {
+      let res;
+      if (editingCategory) {
+        res = await updateCategory({ id: editingCategory.ID, ...categoryForm });
+      } else {
+        res = await addCategory(categoryForm);
+      }
+      
+      if (res && (res.success || res.success === undefined)) {
+        toast.success(editingCategory ? "Category updated!" : "Category added!");
+        resetCategoryForm();
+        setTimeout(async () => { await fetchAllData(); }, 2000);
+      } else {
+        toast.error(res?.error || res?.message || "Failed to save category");
+      }
+    } catch (err) {
+      toast.success("Category saved! Refreshing...");
+      resetCategoryForm();
+      setTimeout(async () => { await fetchAllData(); }, 2000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    setLoading(true);
+    try {
+      await deleteCategory(id);
+      toast.success("Category deleted!");
+      setDeleteCategoryConfirm(null);
+      setTimeout(async () => { await fetchAllData(); }, 2000);
+    } catch (err) {
+      toast.success("Category deleted! Refreshing...");
+      setDeleteCategoryConfirm(null);
+      setTimeout(async () => { await fetchAllData(); }, 2000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ===== RENDER HELPERS (NOT COMPONENTS) =====
+  const renderCategoryForm = () => (
+    <form onSubmit={handleSaveCategory} className="space-y-4 max-w-2xl">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-bold">{editingCategory ? 'Edit Category' : 'Add New Category'}</h3>
+        <button type="button" onClick={resetCategoryForm} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+      </div>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Category Name *</label>
+          <input required value={categoryForm.name} onChange={e => setCategoryForm({...categoryForm, name: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#111111]" placeholder="e.g., Dresses" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Description</label>
+          <textarea rows={3} value={categoryForm.description} onChange={e => setCategoryForm({...categoryForm, description: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#111111]" placeholder="Describe the category..." />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Category Image</label>
+          <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'category')} className="w-full p-2 border border-gray-200 rounded-lg text-sm" />
+          {uploadingImage && <p className="text-xs text-[#B8965A] mt-1">Uploading...</p>}
+          <input type="text" placeholder="Or paste image URL" value={categoryForm.image} onChange={e => setCategoryForm({...categoryForm, image: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg mt-2 text-sm focus:outline-none focus:border-[#111111]" />
+          {categoryForm.image && (
+            <img src={categoryForm.image} alt="Preview" className="w-32 h-32 object-cover rounded border mt-2" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          )}
+        </div>
+      </div>
+      <div className="flex gap-3 pt-4">
+        <button type="submit" disabled={loading} className="flex-1 bg-[#111111] text-[#F5F1EB] py-3 rounded-lg font-bold hover:bg-[#333333] disabled:opacity-50 transition-colors">
+          {loading ? 'Saving...' : (editingCategory ? 'Update Category' : 'Save Category')}
+        </button>
+        <button type="button" onClick={resetCategoryForm} className="px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+      </div>
+    </form>
+  );
   const renderProductForm = () => (
     <form onSubmit={handleSaveProduct} className="space-y-4 max-w-2xl">
       <div className="flex justify-between items-center mb-4">
@@ -322,21 +455,17 @@ export default function Admin() {
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Category *</label>
-          <input 
-            list="category-options"
+          <select 
             required 
             value={productForm.category} 
             onChange={e => setProductForm({...productForm, category: e.target.value})} 
-            className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#111111]" 
-            placeholder="e.g., Dresses, Accessories" 
-          />
-          <datalist id="category-options">
-            <option value="Clothing" />
-            <option value="Intimates" />
-            <option value="Hair Products" />
-            <option value="Accessories" />
-            <option value="Self Care" />
-          </datalist>
+            className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#111111]"
+          >
+            <option value="">Select Category</option>
+            {categories.map((cat: any) => (
+              <option key={cat.ID} value={cat.Name}>{cat.Name}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Stock Quantity *</label>
@@ -351,8 +480,8 @@ export default function Admin() {
           <input type="number" value={productForm.salePrice} onChange={e => setProductForm({...productForm, salePrice: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#B8965A]" placeholder="Leave empty if no discount" />
         </div>
         <div className="col-span-2">
-          <label className="block text-sm font-medium mb-1">Product Images</label>
-          <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="w-full p-2 border border-gray-200 rounded-lg text-sm" />
+          <label className="block text-sm font-medium mb-1">Product Images (Multiple allowed)</label>
+          <input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e, 'product')} className="w-full p-2 border border-gray-200 rounded-lg text-sm" />
           {uploadingImage && <p className="text-xs text-[#B8965A] mt-1">Uploading...</p>}
           <input type="text" placeholder="Or paste image URL(s) — comma separated" value={productForm.images} onChange={e => setProductForm({...productForm, images: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg mt-2 text-sm focus:outline-none focus:border-[#B8965A]" />
           {productForm.images && (
@@ -432,8 +561,8 @@ export default function Admin() {
           <input type="number" value={bundleForm.salePrice} onChange={e => setBundleForm({...bundleForm, salePrice: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#B8965A]" placeholder="Leave empty if no discount" />
         </div>
         <div className="col-span-2">
-          <label className="block text-sm font-medium mb-1">Bundle Images</label>
-          <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="w-full p-2 border border-gray-200 rounded-lg text-sm" />
+          <label className="block text-sm font-medium mb-1">Bundle Images (Multiple allowed)</label>
+          <input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e, 'bundle')} className="w-full p-2 border border-gray-200 rounded-lg text-sm" />
           {uploadingImage && <p className="text-xs text-[#B8965A] mt-1">Uploading...</p>}
           <input type="text" placeholder="Or paste image URL(s) — comma separated" value={bundleForm.images} onChange={e => setBundleForm({...bundleForm, images: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg mt-2 text-sm focus:outline-none focus:border-[#B8965A]" />
           {bundleForm.images && (
@@ -464,6 +593,22 @@ export default function Admin() {
 
   // ===== LOGIN PAGE =====
 
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await updateSettings(settings);
+      if (res.success) {
+        toast.success("Settings updated successfully");
+      } else {
+        toast.error("Failed to update settings");
+      }
+    } catch (error) {
+      toast.error("Failed to update settings");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F1EB] flex flex-col md:flex-row">
@@ -479,6 +624,9 @@ export default function Admin() {
           </button>
           <button onClick={() => setActiveTab('products')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'products' ? 'bg-[#111111] text-[#F5F1EB]' : 'text-gray-600 hover:bg-gray-50'}`}>
             <Package className="w-5 h-5" /> Products
+          </button>
+          <button onClick={() => setActiveTab('categories')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'categories' ? 'bg-[#111111] text-[#F5F1EB]' : 'text-gray-600 hover:bg-gray-50'}`}>
+            <Grid className="w-5 h-5" /> Categories
           </button>
           <button onClick={() => setActiveTab('bundles')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'bundles' ? 'bg-[#111111] text-[#F5F1EB]' : 'text-gray-600 hover:bg-gray-50'}`}>
             <Gift className="w-5 h-5" /> Bundles
@@ -626,6 +774,66 @@ export default function Admin() {
                               </tr>
                             );
                           })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'categories' && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              {isAddingCategory ? renderCategoryForm() : (
+                <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <div><h2 className="text-xl font-bold">Categories</h2><p className="text-sm text-gray-500">{categories.length} total categories</p></div>
+                    <div className="flex gap-2">
+                      <button onClick={fetchAllData} className="p-2 hover:bg-gray-100 rounded-lg" title="Refresh"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
+                      <button onClick={openAddCategory} className="bg-[#111111] text-[#F5F1EB] px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#333333] flex items-center gap-2"><Plus className="w-4 h-4" /> Add Category</button>
+                    </div>
+                  </div>
+                  {categories.length === 0 ? (
+                    <div className="text-center py-16 text-gray-400"><Grid className="w-12 h-12 mx-auto mb-4 opacity-50" /><p className="font-medium">No categories yet</p><p className="text-sm mt-1">Click "Add Category" to get started</p></div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 text-gray-500">
+                            <th className="pb-3 pr-4">#</th>
+                            <th className="pb-3 pr-4">Image</th>
+                            <th className="pb-3 pr-4">Name</th>
+                            <th className="pb-3 pr-4">Description</th>
+                            <th className="pb-3">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {categories.map((category: any, index: number) => (
+                            <tr key={category.ID || index} className="border-b border-gray-50 hover:bg-gray-50">
+                              <td className="py-3 pr-4 text-gray-400">{index + 1}</td>
+                              <td className="py-3 pr-4">
+                                {category.Image ? <img src={category.Image} alt={category.Name} className="w-12 h-12 object-cover rounded border" /> : <div className="w-12 h-12 bg-[#E8E2D9] rounded border flex items-center justify-center text-xs text-gray-400">No img</div>}
+                              </td>
+                              <td className="py-3 pr-4 font-medium text-[#111111]">{category.Name}</td>
+                              <td className="py-3 pr-4 text-gray-500 max-w-xs truncate">{category.Description || 'No description'}</td>
+                              <td className="py-3">
+                                <div className="flex gap-1">
+                                  <button onClick={() => openEditCategory(category)} className="p-1.5 hover:bg-blue-50 rounded text-blue-500" title="Edit"><Pencil className="w-4 h-4" /></button>
+                                  <button onClick={() => setDeleteCategoryConfirm(category.ID)} className="p-1.5 hover:bg-red-50 rounded text-red-500" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                                {deleteCategoryConfirm === category.ID && (
+                                  <div className="absolute bg-white shadow-lg rounded-lg p-4 border mt-1 z-50">
+                                    <p className="text-sm mb-3">Delete "{category.Name}"?</p>
+                                    <div className="flex gap-2">
+                                      <button onClick={() => handleDeleteCategory(category.ID)} className="px-3 py-1 bg-red-500 text-white rounded text-xs">Delete</button>
+                                      <button onClick={() => setDeleteCategoryConfirm(null)} className="px-3 py-1 bg-gray-100 rounded text-xs">Cancel</button>
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -793,16 +1001,37 @@ export default function Admin() {
           {activeTab === 'settings' && (
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-xl">
               <h2 className="text-xl font-bold mb-6">Settings</h2>
-              <div className="space-y-4">
+              <form onSubmit={handleUpdateSettings} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">bKash Number</label>
+                  <input 
+                    type="text" 
+                    value={settings?.bkash_number || ''} 
+                    onChange={(e) => setSettings({...settings, bkash_number: e.target.value})}
+                    className="w-full p-2.5 border border-gray-200 rounded-lg bg-white" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Nagad Number</label>
+                  <input 
+                    type="text" 
+                    value={settings?.nagad_number || ''} 
+                    onChange={(e) => setSettings({...settings, nagad_number: e.target.value})}
+                    className="w-full p-2.5 border border-gray-200 rounded-lg bg-white" 
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">ImgBB API Key</label>
                   <p className="text-xs text-gray-500 mb-2">Required for image uploads. Get one at api.imgbb.com</p>
                   <input type="password" value={imgbbKey} disabled className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500" />
                 </div>
+                <button type="submit" disabled={loading} className="w-full bg-[#111111] text-[#F5F1EB] py-3 rounded-lg font-bold hover:bg-[#333333] transition-colors">
+                  {loading ? "Saving..." : "Save Settings"}
+                </button>
                 <div className="pt-4 border-t">
                   <p className="text-sm text-gray-500">Application Version: 1.0.0</p>
                 </div>
-              </div>
+              </form>
             </div>
           )}
         </div>
