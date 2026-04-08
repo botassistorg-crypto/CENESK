@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, Truck, RefreshCw, ShieldCheck, Minus, Plus, Share2, Heart } from 'lucide-react';
+import { Star, Truck, RefreshCw, ShieldCheck, Minus, Plus, Share2, Heart, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/utils';
 import { getProducts } from '../lib/api';
@@ -19,6 +20,8 @@ export default function ProductDetails() {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [showZoom, setShowZoom] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const { addItem } = useCart();
   const [loading, setLoading] = useState(true);
 
@@ -122,6 +125,12 @@ export default function ProductDetails() {
             onMouseEnter={() => setShowZoom(true)}
             onMouseLeave={() => setShowZoom(false)}
             onMouseMove={handleMouseMove}
+            onClick={() => {
+              const currentImg = selectedImage || product.image;
+              const idx = product.images.indexOf(currentImg);
+              setLightboxIndex(idx >= 0 ? idx : 0);
+              setIsLightboxOpen(true);
+            }}
           >
             <img
               src={selectedImage || product.image}
@@ -302,6 +311,75 @@ export default function ProductDetails() {
           </div>
         </section>
       )}
+
+      {/* Fullscreen Lightbox */}
+      <AnimatePresence>
+        {isLightboxOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+          >
+            <button 
+              onClick={() => setIsLightboxOpen(false)}
+              className="absolute top-6 right-6 text-white/70 hover:text-white p-2 transition-colors z-50"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            
+            {product.images.length > 1 && (
+              <>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex((prev) => (prev === 0 ? product.images.length - 1 : prev - 1));
+                  }}
+                  className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2 transition-colors z-50"
+                >
+                  <ChevronLeft className="w-10 h-10" />
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex((prev) => (prev === product.images.length - 1 ? 0 : prev + 1));
+                  }}
+                  className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2 transition-colors z-50"
+                >
+                  <ChevronRight className="w-10 h-10" />
+                </button>
+              </>
+            )}
+
+            <div className="w-full h-full p-4 md:p-12 flex items-center justify-center" onClick={() => setIsLightboxOpen(false)}>
+              <img 
+                src={product.images[lightboxIndex]} 
+                alt={`${product.name} - View ${lightboxIndex + 1}`}
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            
+            {/* Lightbox Thumbnails */}
+            {product.images.length > 1 && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4 py-2">
+                {product.images.map((img: string, i: number) => (
+                  <button
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxIndex(i);
+                    }}
+                    className={`w-16 h-20 flex-shrink-0 overflow-hidden border-2 transition-all ${lightboxIndex === i ? 'border-white' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                  >
+                    <img src={img} alt={`Thumb ${i}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
