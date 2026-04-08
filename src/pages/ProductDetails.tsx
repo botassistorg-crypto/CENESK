@@ -22,6 +22,8 @@ export default function ProductDetails() {
   const { addItem } = useCart();
   const [loading, setLoading] = useState(true);
 
+  const [selectedImage, setSelectedImage] = useState("");
+
   useEffect(() => {
     const fetchProductData = async () => {
       setLoading(true);
@@ -50,6 +52,7 @@ export default function ProductDetails() {
         const foundProduct = mappedProducts.find((p: any) => p.id === id);
         if (foundProduct) {
           setProduct(foundProduct);
+          setSelectedImage(foundProduct.image);
           // Set default selections
           if (foundProduct.sizes.length > 0) setSelectedSize(foundProduct.sizes[0]);
           if (foundProduct.colors.length > 0) setSelectedColor(foundProduct.colors[0]);
@@ -121,8 +124,10 @@ export default function ProductDetails() {
             onMouseMove={handleMouseMove}
           >
             <img
-              src={product.image}
+              src={selectedImage || product.image}
               alt={product.name}
+              loading="lazy"
+              decoding="async"
               className={`w-full h-full object-cover transition-transform duration-500 ${showZoom ? 'scale-150' : 'scale-100'}`}
               style={showZoom ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : {}}
             />
@@ -139,9 +144,13 @@ export default function ProductDetails() {
             </button>
           </div>
           <div className="grid grid-cols-4 gap-6">
-            {product.images.slice(0, 4).map((img: string, i: number) => (
-              <div key={i} className="aspect-[3/4] bg-[#E8DED1] overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
-                <img src={img} alt={`Thumbnail ${i}`} className="w-full h-full object-cover" />
+            {product.images.map((img: string, i: number) => (
+              <div 
+                key={i} 
+                onClick={() => setSelectedImage(img)}
+                className={`aspect-[3/4] bg-[#E8DED1] overflow-hidden cursor-pointer hover:opacity-80 transition-all ${selectedImage === img ? 'ring-1 ring-[#111111] ring-offset-2' : ''}`}
+              >
+                <img src={img} alt={`Thumbnail ${i}`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </div>
             ))}
           </div>
