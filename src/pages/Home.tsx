@@ -60,10 +60,22 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5, duration: 1 }}
-            className="text-sm md:text-base text-white/90 tracking-[0.3em] uppercase font-sans"
+            className="text-sm md:text-base text-white/90 tracking-[0.3em] uppercase font-sans mb-10"
           >
             Timeless Elegance
           </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 1 }}
+          >
+            <Link 
+              to="/shop" 
+              className="bg-white/10 backdrop-blur-sm border border-white/30 text-white px-10 py-4 uppercase tracking-[0.2em] text-sm hover:bg-white hover:text-black transition-all duration-300"
+            >
+              Shop Now
+            </Link>
+          </motion.div>
         </div>
       </section>
 
