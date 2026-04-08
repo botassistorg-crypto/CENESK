@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/utils';
-import { placeOrder } from '../lib/api';
+import { placeOrder, getSettings } from '../lib/api';
 import { toast } from 'sonner';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
@@ -28,9 +28,17 @@ export default function Checkout() {
   const { items, cartTotal, clearCart } = useCart();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    getSettings().then(res => {
+      if (res.success) setSettings(res.data);
+    });
+  }, []);
+
   const { register, handleSubmit, watch, formState: { errors } } = useForm<CheckoutForm>({
     defaultValues: {
-      paymentMethod: 'bkash',
+      paymentMethod: 'cod',
       division: 'Dhaka'
     }
   });
@@ -53,7 +61,7 @@ export default function Checkout() {
         division: data.division,
         district: data.district,
         paymentMethod: data.paymentMethod,
-        transactionId: data.paymentMethod === 'bkash' ? `${data.transactionId} (Sender: ${data.senderNumber})` : data.transactionId,
+        transactionId: (data.paymentMethod === 'bkash' || data.paymentMethod === 'nagad') ? `${data.transactionId || 'N/A'} (Sender: ${data.senderNumber || 'N/A'})` : (data.transactionId || 'N/A'),
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -189,12 +197,18 @@ export default function Checkout() {
               <section className="bg-transparent">
                 <h2 className="text-xs font-sans uppercase tracking-[0.2em] mb-8 text-[#111111] border-b border-[#E8DED1] pb-4">Payment Method</h2>
                 <div className="space-y-6">
-                  <div className="bg-[#E8DED1] p-6 text-sm text-[#111111] font-light">
-                    <p className="font-medium flex items-center gap-3 mb-2 tracking-wide">
-                      <ShieldCheck className="w-4 h-4 stroke-[1.5]" /> Advance Payment Required
-                    </p>
-                    <p className="text-[#555555]">To ensure genuine orders and fast delivery from our premium partners, we currently accept full advance payment only.</p>
-                  </div>
+                  <label className={`flex items-start gap-4 p-6 border cursor-pointer transition-colors ${selectedPaymentMethod === 'cod' ? 'border-[#111111] bg-[#E8DED1]/30' : 'border-[#E8DED1]'}`}>
+                    <input
+                      type="radio"
+                      value="cod"
+                      {...register('paymentMethod')}
+                      className="mt-1 accent-[#111111]"
+                    />
+                    <div className="w-full">
+                      <span className="font-sans text-sm tracking-widest uppercase block text-[#111111] mb-2">Cash on Delivery</span>
+                      <span className="text-xs text-[#555555] block font-light">Pay when you receive your order.</span>
+                    </div>
+                  </label>
 
                   <label className={`flex items-start gap-4 p-6 border cursor-pointer transition-colors ${selectedPaymentMethod === 'bkash' ? 'border-[#111111] bg-[#E8DED1]/30' : 'border-[#E8DED1]'}`}>
                     <input
@@ -207,11 +221,11 @@ export default function Checkout() {
                     <div className="w-full">
                       <span className="font-sans text-sm tracking-widest uppercase block text-[#111111] mb-4">bKash Payment</span>
                       <div className="text-xs text-[#555555] bg-[#F5F1EB] p-4 border border-[#E8DED1] mb-6 font-light">
-                        <p className="font-medium mb-3 uppercase tracking-widest text-[#111111]">How to Pay:</p>
+                        <p className="font-medium mb-3 uppercase tracking-widest text-[#111111]">How to Pay (Optional Advance Payment):</p>
                         <ol className="list-decimal list-inside space-y-2">
                           <li>Go to your bKash App</li>
                           <li>Select <strong>"Send Money"</strong></li>
-                          <li>Enter Number: <strong className="text-[#111111] text-sm">01628164979</strong></li>
+                          <li>Enter Number: <strong className="text-[#111111] text-sm">{settings?.bkash_number || '01628164979'}</strong></li>
                           <li>Enter Amount: <strong>৳{formatPrice(total).replace('BDT', '').trim()}</strong></li>
                           <li>Reference: Your Name</li>
                         </ol>
@@ -219,13 +233,12 @@ export default function Checkout() {
                       
                       <div className="space-y-6">
                         <div>
-                          <label className="block text-[10px] uppercase tracking-[0.2em] text-[#555555] mb-2">Your bKash Number (Sender)</label>
+                          <label className="block text-[10px] uppercase tracking-[0.2em] text-[#555555] mb-2">Your bKash Number (Sender) <span className="text-[#999999] font-light">(Optional)</span></label>
                           <input
-                            {...register('senderNumber', { required: "Sender number is required" })}
+                            {...register('senderNumber')}
                             placeholder="The number you sent money FROM"
                             className="w-full px-4 py-3 bg-transparent border border-[#E8DED1] focus:outline-none focus:border-[#111111] transition-colors font-light text-sm"
                           />
-                          <p className="text-[10px] text-[#999999] mt-2 font-light">We need this to verify your payment.</p>
                         </div>
                         
                         <div>
@@ -235,9 +248,6 @@ export default function Checkout() {
                             placeholder="e.g., 8N7A6D5F"
                             className="w-full px-4 py-3 bg-transparent border border-[#E8DED1] focus:outline-none focus:border-[#111111] transition-colors font-light text-sm"
                           />
-                          <p className="text-[10px] text-[#999999] mt-2 font-light">
-                            If you didn't receive a TrxID, just provide your Sender Number above.
-                          </p>
                         </div>
                       </div>
                       {errors.transactionId && <p className="text-red-500 text-xs mt-2">{errors.transactionId.message}</p>}
@@ -252,15 +262,37 @@ export default function Checkout() {
                       className="mt-1 accent-[#111111]"
                     />
                     <div className="w-full">
-                      <span className="font-sans text-sm tracking-widest uppercase block text-[#111111] mb-2">Nagad Payment</span>
-                      <span className="text-xs text-[#555555] block mb-4 font-light">Send payment to: 01XXXXXXXXX (Personal)</span>
-                      {selectedPaymentMethod === 'nagad' && (
-                        <input
-                          {...register('transactionId', { required: selectedPaymentMethod === 'nagad' ? "Transaction ID is required" : false })}
-                          placeholder="Enter Transaction ID"
-                          className="w-full px-4 py-3 bg-transparent border border-[#E8DED1] focus:outline-none focus:border-[#111111] transition-colors font-light text-sm"
-                        />
-                      )}
+                      <span className="font-sans text-sm tracking-widest uppercase block text-[#111111] mb-4">Nagad Payment</span>
+                      <div className="text-xs text-[#555555] bg-[#F5F1EB] p-4 border border-[#E8DED1] mb-6 font-light">
+                        <p className="font-medium mb-3 uppercase tracking-widest text-[#111111]">How to Pay (Optional Advance Payment):</p>
+                        <ol className="list-decimal list-inside space-y-2">
+                          <li>Go to your Nagad App</li>
+                          <li>Select <strong>"Send Money"</strong></li>
+                          <li>Enter Number: <strong className="text-[#111111] text-sm">{settings?.nagad_number || '01XXXXXXXXX'}</strong></li>
+                          <li>Enter Amount: <strong>৳{formatPrice(total).replace('BDT', '').trim()}</strong></li>
+                          <li>Reference: Your Name</li>
+                        </ol>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div>
+                          <label className="block text-[10px] uppercase tracking-[0.2em] text-[#555555] mb-2">Your Nagad Number (Sender) <span className="text-[#999999] font-light">(Optional)</span></label>
+                          <input
+                            {...register('senderNumber')}
+                            placeholder="The number you sent money FROM"
+                            className="w-full px-4 py-3 bg-transparent border border-[#E8DED1] focus:outline-none focus:border-[#111111] transition-colors font-light text-sm"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-[10px] uppercase tracking-[0.2em] text-[#555555] mb-2">Transaction ID (TrxID) <span className="text-[#999999] font-light">(Optional)</span></label>
+                          <input
+                            {...register('transactionId')}
+                            placeholder="e.g., 8N7A6D5F"
+                            className="w-full px-4 py-3 bg-transparent border border-[#E8DED1] focus:outline-none focus:border-[#111111] transition-colors font-light text-sm"
+                          />
+                        </div>
+                      </div>
                       {errors.transactionId && <p className="text-red-500 text-xs mt-2">{errors.transactionId.message}</p>}
                     </div>
                   </label>
