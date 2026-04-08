@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Outfit", sans-serif;
+  
+  --color-primary: #F5F1EB;
+  --color-secondary: #E8DED1;
+  --color-accent-black: #111111;
+  --color-accent-gold: #C6A76E;
+  --color-error: #D4564A;
+  --color-text-primary: #111111;
+  --color-text-secondary: #555555;
+  --color-text-light: #999999;
+  --color-bg-primary: #F5F1EB;
+  --color-bg-secondary: #E8DED1;
+  --color-bg-dark: #111111;
+}
+
+:root {
+  --primary: #F5F1EB;
+  --secondary: #E8DED1;
+  --accent-black: #111111;
+  --accent-gold: #C6A76E;
+  --error: #D4564A;
+  --text-primary: #111111;
+  --text-secondary: #555555;
+  --text-light: #999999;
+  --bg-primary: #F5F1EB;
+  --bg-secondary: #E8DED1;
+  --bg-dark: #111111;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--secondary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-gold);
+}
+
+/* Utility classes for premium feel */
+.premium-shadow {
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+}
+
+.text-gold {
+  color: var(--accent-gold);
+}
+
+.bg-gold {
+  background-color: var(--accent-gold);
+}
+
+.border-gold {
+  border-color: var(--accent-gold);
+}
+
+.hover-lift {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.08);
+}
