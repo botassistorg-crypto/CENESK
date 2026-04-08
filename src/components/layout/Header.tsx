@@ -40,9 +40,10 @@ export default function Header() {
   ];
 
   return (
+    <>
     <header 
-      className={`fixed top-[36px] left-0 right-0 z-40 transition-all duration-500 ${
-        isScrolled ? 'bg-[#F5F1EB]/95 backdrop-blur-md shadow-sm py-4' : 'bg-[#F5F1EB] py-6'
+      className={`fixed left-0 right-0 z-40 transition-all duration-500 ${
+        isScrolled ? 'top-0 bg-[#F5F1EB]/95 backdrop-blur-md shadow-sm py-4' : 'top-[36px] bg-[#F5F1EB] py-6'
       }`}
     >
       <div className="container mx-auto px-4 flex items-center justify-between">
@@ -115,51 +116,52 @@ export default function Header() {
           </button>
         </div>
       </div>
-
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-50 lg:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'tween', duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-              className="fixed top-0 left-0 bottom-0 w-[85%] max-w-[320px] bg-[#F5F1EB] z-50 lg:hidden shadow-2xl p-8 flex flex-col"
-            >
-              <div className="flex items-center justify-between mb-12">
-                <Logo className="text-xl text-[#111111]" />
-                <button 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 hover:bg-black/5 rounded-full transition-colors"
-                >
-                  <X className="w-6 h-6 text-[#111111]" />
-                </button>
-              </div>
-              <nav className="flex flex-col gap-8">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.name}
-                    to={link.path}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`text-sm font-sans tracking-[0.2em] uppercase ${
-                      location.pathname === link.path ? 'text-[#C6A76E]' : 'text-[#555555]'
-                    }`}
-                  >
-                    {link.name}
-                  </Link>
-                ))}
-              </nav>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </header>
+
+    <AnimatePresence>
+      {isMobileMenuOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <motion.div
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'tween', duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
+            className="fixed top-0 left-0 bottom-0 w-[85%] max-w-[320px] bg-[#F5F1EB] z-50 lg:hidden shadow-2xl p-8 flex flex-col"
+          >
+            <div className="flex items-center justify-between mb-12">
+              <Logo className="text-xl text-[#111111]" />
+              <button 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 hover:bg-black/5 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-[#111111]" />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-8">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`text-sm font-sans tracking-[0.2em] uppercase ${
+                    location.pathname === link.path ? 'text-[#C6A76E]' : 'text-[#555555]'
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </nav>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
