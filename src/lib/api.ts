@@ -6,7 +6,7 @@ async function apiGet(action: string, params: Record<string, string> = {}): Prom
   try {
     const queryParams = new URLSearchParams({ action, ...params });
     const url = `${API_URL}?${queryParams.toString()}`;
-    console.log(`[CENESK API] GET: ${action}`, params);
+    console.log(`[SURRIELS API] GET: ${action}`, params);
     
     const response = await fetch(url);
     
